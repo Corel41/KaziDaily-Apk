@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Briefcase handle -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#38BDF8"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:pathData="M44,43 V38 C44,35 46,33 49,33 H59 C62,33 64,35 64,38 V43" />
+    <!-- Briefcase body -->
+    <path
+        android:fillColor="#151A24"
+        android:strokeColor="#34D399"
+        android:strokeWidth="3.2"
+        android:strokeLineJoin="round"
+        android:pathData="M32,43 H76 C79,43 81,45 81,48 V73 C81,76 79,78 76,78 H32 C29,78 27,76 27,73 V48 C27,45 29,43 32,43 Z" />
+    <!-- Center seam line -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#243042"
+        android:strokeWidth="2"
+        android:pathData="M27,55 H81" />
+    <!-- Escrow Checkmark badge -->
+    <path
+        android:fillColor="#10B981"
+        android:pathData="M54,53 C49,53 45,57 45,62 C45,68 54,74 54,74 C54,74 63,68 63,62 C63,57 59,53 54,53 Z" />
+    <!-- Checkmark inside badge -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M50,62 L53,65 L58,59" />
+</vector>

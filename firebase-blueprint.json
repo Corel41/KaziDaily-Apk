@@ -1,0 +1,135 @@
+{
+  "entities": {
+    "Job": {
+      "title": "Job",
+      "description": "A casual gig or trade job posting in Nairobi",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "payKsh": { "type": "integer" },
+        "durationHours": { "type": "integer" },
+        "locationName": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "employerId": { "type": "string" },
+        "employerName": { "type": "string" },
+        "employerRating": { "type": "number" },
+        "employerReviewCount": { "type": "integer" },
+        "status": { "type": "string" },
+        "assignedWorkerId": { "type": "string" },
+        "assignedWorkerName": { "type": "string" },
+        "escrowAmountKsh": { "type": "integer" },
+        "platformFeePercent": { "type": "integer" },
+        "workerReviewed": { "type": "boolean" },
+        "employerReviewed": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "category", "payKsh", "locationName", "latitude", "longitude", "employerId", "status"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with ratings and reputation",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "phone": { "type": "string" },
+        "rating": { "type": "number" },
+        "reviewCount": { "type": "integer" },
+        "completedJobs": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "displayName"]
+    },
+    "WalletSummary": {
+      "title": "WalletSummary",
+      "description": "User wallet balance and locked escrow tracking",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "availableBalanceKsh": { "type": "integer" },
+        "lockedInEscrowKsh": { "type": "integer" },
+        "totalEarnedKsh": { "type": "integer" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "availableBalanceKsh", "lockedInEscrowKsh"]
+    },
+    "WalletTransaction": {
+      "title": "WalletTransaction",
+      "description": "Ledger of wallet and escrow transactions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "type": { "type": "string" },
+        "amountKsh": { "type": "integer" },
+        "description": { "type": "string" },
+        "referenceJobId": { "type": "string" },
+        "mpesaReceipt": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "type", "amountKsh"]
+    },
+    "Thread": {
+      "title": "Thread",
+      "description": "Conversation between employer and worker regarding a job",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "jobId": { "type": "string" },
+        "jobTitle": { "type": "string" },
+        "participantUids": { "type": "array" },
+        "lastMessage": { "type": "string" },
+        "lastSenderId": { "type": "string" },
+        "unreadCount": { "type": "integer" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["jobId", "participantUids"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Individual chat message",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderId", "text"]
+    }
+  },
+  "firestore": {
+    "/jobs/{jobId}": {
+      "schema": "Job",
+      "description": "Public and active job postings across Nairobi"
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profiles and reputations"
+    },
+    "/users/{userId}/wallet/summary": {
+      "schema": "WalletSummary",
+      "description": "Authenticated user's private wallet summary"
+    },
+    "/users/{userId}/wallet/transactions/{transactionId}": {
+      "schema": "WalletTransaction",
+      "description": "Authenticated user's transaction ledger"
+    },
+    "/threads/{threadId}": {
+      "schema": "Thread",
+      "description": "Chat thread between participants"
+    },
+    "/threads/{threadId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Messages belonging to a chat thread"
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "KaziDaily",
+  "description": "Daily casual work & gig marketplace in Kenya with secure escrow payments, real-time in-app chat, maps routing, and verified profiles.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
