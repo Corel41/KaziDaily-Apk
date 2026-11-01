@@ -94,11 +94,7 @@ fun ProfileWalletScreen(
                     )
                 }
 
-                // Grok-like Mobile Theme Switcher
-                GrokThemeSwitcher(
-                    isDarkTheme = tokens.isDark,
-                    onToggle = { viewModel.toggleTheme() }
-                )
+
             }
         }
 
@@ -444,29 +440,45 @@ fun ProfileWalletScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "KaziDaily for Android",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = tokens.textPrimary
-                        )
-                        Text(
-                            text = "Current: v${viewModel.currentVersionName} (Build ${viewModel.currentVersionCode})",
-                            fontSize = 11.sp,
-                            color = tokens.textMuted
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "KaziDaily Patch Manager",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = tokens.textPrimary
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "v${viewModel.currentVersionName} (Build ${viewModel.currentVersionCode}) · GitHub Releases",
+                                fontSize = 11.sp,
+                                color = tokens.mintAccent,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        GlassButton(
+                            text = "🚀 Patch Updates",
+                            onClick = { viewModel.checkPatchUpdates() },
+                            isPrimary = true,
+                            testTag = "patch_updates_button"
                         )
                     }
-                    GlassButton(
-                        text = "Check Updates",
-                        onClick = { viewModel.checkForUpdates() },
-                        isPrimary = true,
-                        testTag = "check_updates_button"
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = "Installs incremental patches directly from the GitHub repository in place. Your wallet balance, escrow jobs, and login state are completely preserved without reinstalling.",
+                        fontSize = 11.sp,
+                        color = tokens.textMuted,
+                        lineHeight = 15.sp
                     )
                 }
             }

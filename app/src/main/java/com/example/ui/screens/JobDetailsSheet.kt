@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.model.Job
 import com.example.model.JobStatus
 import com.example.ui.components.GlassButton
@@ -34,11 +35,13 @@ import com.example.ui.components.GlassPill
 import com.example.ui.components.JobLocationRouteMapView
 import com.example.ui.theme.LocalGlassTokens
 import com.example.util.CloudinaryService
+import com.example.viewmodel.KaziViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun JobDetailsSheet(
     job: Job,
+    viewModel: KaziViewModel? = null,
     onDismiss: () -> Unit,
     onApply: () -> Unit,
     onHoldEscrow: () -> Unit,
@@ -117,6 +120,9 @@ fun JobDetailsSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            val followedIds = viewModel?.followedEmployerIds?.collectAsStateWithLifecycle()?.value ?: emptySet()
+            val isFollowing = followedIds.contains(job.employerId)
+
             // Employer Information Card
             GlassCard(
                 modifier = Modifier.fillMaxWidth(),
@@ -165,6 +171,16 @@ fun JobDetailsSheet(
                                 color = tokens.textMuted
                             )
                         }
+                    }
+
+                    if (viewModel != null) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        GlassButton(
+                            text = if (isFollowing) "Following ✓" else "+ Follow",
+                            onClick = { viewModel.toggleFollowEmployer(job.employerId, job.employerName) },
+                            isPrimary = !isFollowing,
+                            modifier = Modifier.testTag("follow_employer_btn")
+                        )
                     }
                 }
             }

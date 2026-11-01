@@ -583,7 +583,7 @@ class KaziViewModel(
         showToast("Added skill: $skill")
     }
 
-    // App Version & In-App Auto-Updater
+    // App Version & In-App GitHub Patch Updater
     private val updateManager = UpdateManager()
     val currentVersionCode: Int = 1
     val currentVersionName: String = "1.0.0"
@@ -591,10 +591,10 @@ class KaziViewModel(
     private val _updateState = MutableStateFlow<UpdateDownloadState>(UpdateDownloadState.Idle)
     val updateState: StateFlow<UpdateDownloadState> = _updateState.asStateFlow()
 
-    fun checkForUpdates() {
+    fun checkPatchUpdates() {
         viewModelScope.launch {
             _updateState.value = UpdateDownloadState.Checking
-            val available = updateManager.checkForUpdates(currentVersionCode)
+            val available = updateManager.checkForPatchUpdates(currentVersionCode)
             if (available != null) {
                 _updateState.value = UpdateDownloadState.Available(available)
             } else {
@@ -603,28 +603,37 @@ class KaziViewModel(
         }
     }
 
+    fun checkForUpdates() = checkPatchUpdates()
+
     fun startDownloadUpdate(context: Context, updateInfo: AppUpdateInfo) {
         viewModelScope.launch {
-            _updateState.value = UpdateDownloadState.Downloading(0, 0L, updateInfo.apkSizeBytes)
+            val totalBytes = updateInfo.deltaSizeBytes
+            _updateState.value = UpdateDownloadState.Downloading(0, 0L, totalBytes)
             try {
-                val apkFile = updateManager.downloadApk(context, updateInfo) { progress ->
+                val patchFile = updateManager.downloadPatch(context, updateInfo) { progress ->
                     _updateState.value = UpdateDownloadState.Downloading(
                         progressPercent = progress,
-                        downloadedBytes = (updateInfo.apkSizeBytes * progress) / 100,
-                        totalBytes = updateInfo.apkSizeBytes
+                        downloadedBytes = (totalBytes * progress) / 100,
+                        totalBytes = totalBytes
                     )
                 }
-                _updateState.value = UpdateDownloadState.ReadyToInstall(apkFile.absolutePath, updateInfo)
+                _updateState.value = UpdateDownloadState.ReadyToInstall(patchFile.absolutePath, updateInfo)
             } catch (e: Exception) {
-                _updateState.value = UpdateDownloadState.Error("Download failed: ${e.message}")
+                _updateState.value = UpdateDownloadState.Error("Patch download failed: ${e.message}")
             }
         }
     }
 
     fun installDownloadedApk(context: Context, apkFilePath: String) {
-        val success = updateManager.installApk(context, java.io.File(apkFilePath))
+        applyPatchAndRestart(context, apkFilePath)
+    }
+
+    fun applyPatchAndRestart(context: Context, patchFilePath: String) {
+        val success = updateManager.installPatchAndRestart(context, java.io.File(patchFilePath))
         if (!success) {
-            showToast("Failed to launch package installer")
+            showToast("Failed to launch package installer for patch update")
+        } else {
+            showToast("Applying patch in place... relaunching KaziDaily")
         }
     }
 
@@ -636,5 +645,21 @@ class KaziViewModel(
         repository.resetData()
         showToast("Local data reset to defaults.")
         _currentTab.value = AppNavTab.HOME
+    }
+
+    // Followed Employers for instant recommendations & upload notifications
+    private val _followedEmployerIds = MutableStateFlow<Set<String>>(emptySet())
+    val followedEmployerIds: StateFlow<Set<String>> = _followedEmployerIds.asStateFlow()
+
+    fun toggleFollowEmployer(employerId: String, employerName: String) {
+        val current = _followedEmployerIds.value.toMutableSet()
+        if (current.contains(employerId)) {
+            current.remove(employerId)
+            showToast("Unfollowed $employerName")
+        } else {
+            current.add(employerId)
+            showToast("🔔 Now following $employerName! You'll receive instant notifications & recommendations when they upload work.")
+        }
+        _followedEmployerIds.value = current
     }
 }

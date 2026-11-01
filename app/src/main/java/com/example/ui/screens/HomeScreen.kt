@@ -221,6 +221,7 @@ fun HomeScreen(
     inspectingJob?.let { job ->
         JobDetailsSheet(
             job = job,
+            viewModel = viewModel,
             onDismiss = { inspectingJob = null },
             onApply = { viewModel.applyForJob(job) },
             onHoldEscrow = { viewModel.promptEscrowDeposit(job) },

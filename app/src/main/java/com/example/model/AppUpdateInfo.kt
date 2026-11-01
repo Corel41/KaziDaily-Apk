@@ -7,13 +7,20 @@ data class AppUpdateInfo(
     val releaseNotes: List<String>,
     val apkDownloadUrl: String,
     val apkSizeBytes: Long = 18_400_000L,
-    val isMandatory: Boolean = false
+    val deltaSizeBytes: Long = 4_200_000L,
+    val isMandatory: Boolean = false,
+    val patchTag: String = "v1.2.0-patch",
+    val githubRepoUrl: String = "https://github.com/aistudio-build/kazidaily",
+    val isPatch: Boolean = true
 ) {
     fun isUpdateAvailable(currentVersionCode: Int): Boolean {
         return latestVersionCode > currentVersionCode
     }
 
     val formattedSize: String
+        get() = "${Math.round((deltaSizeBytes / (1024.0 * 1024.0)) * 10.0) / 10.0} MB patch"
+
+    val fullSizeFormatted: String
         get() = "${Math.round((apkSizeBytes / (1024.0 * 1024.0)) * 10.0) / 10.0} MB"
 }
 

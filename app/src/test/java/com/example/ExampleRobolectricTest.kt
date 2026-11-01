@@ -87,7 +87,8 @@ class ExampleRobolectricTest {
         val update = updateManager.checkForUpdates(currentVersionCode = 1)
         assertNotNull(update)
         assertEquals(2, update!!.latestVersionCode)
-        assertEquals("1.2.0", update.latestVersionName)
+        assertTrue(update.latestVersionName.startsWith("1.2.0"))
+        assertTrue(update.isPatch)
         assertTrue(update.isUpdateAvailable(currentVersionCode = 1))
         assertFalse(update.isUpdateAvailable(currentVersionCode = 2))
     }

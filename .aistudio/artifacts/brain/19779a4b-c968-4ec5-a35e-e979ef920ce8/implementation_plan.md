@@ -1,24 +1,25 @@
-# Cloudinary Image Hosting & Mobile Media Pipeline for KaziDaily
+# GitHub Patch Updates & Full-Screen In-Place Updater
 
-Integrates Cloudinary as the media hosting and CDN backbone for KaziDaily, enabling workers and employers to upload and display optimized job site photos and artisan profile avatars with on-the-fly mobile transformations and real-time Firestore sync.
+Enables in-place patch updates for KaziDaily directly from GitHub releases without full uninstallation or data loss, featuring an immediate full-screen glass update experience that prompts a quick restart.
 
 ## User Review & Critical Decisions
 
 > [!IMPORTANT]
 > The following architectural decisions were confirmed during the interactive interview:
-> - **Primary Image Scope**: Job site photos (attached during gig posting/inspection) and artisan profile avatars (with live cropping and badge overlays).
-> - **Hosting & Processing Engine**: **Cloudinary** (utilizing its automatic WebP/AVIF format optimization, dynamic quality scaling `q_auto`, and mobile CDN delivery).
-> - **Android Media Ingestion**: Standard Zero-Permission Android Photo Picker (`ActivityResultContracts.PickVisualMedia`) conforming to Google Play guidelines.
-> - **Client Rendering Engine**: Jetpack Compose `AsyncImage` via Coil (`io.coil-kt:coil-compose:2.7.0`), leveraging Cloudinary URL transformations for bandwidth savings across 3G/4G connections in Kenya.
+> - **Patch Updates over Check Updates**: Replaced the generic "Check Updates" button with **"Patch Updates"** in the profile and settings UI. Updates fetch release patches and delta packages published on the GitHub repository.
+> - **In-Place Installation (Zero Data Loss)**: Updates are installed in-place via the Android Package Installer. The app is never uninstalled; all user accounts, wallet balance, active escrow transactions, messages, and settings are 100% preserved.
+> - **Immediate Full-Screen Experience**: When an update or patch is initiated, an immersive full-screen glass modal displays the patch changelog, download progress bar, and a prominent prompt: **"Patch Ready! Restart to Apply"** with a one-tap restart & apply action.
 
 ---
 
 ## 1. Overview & Core Concept
 
-Currently, KaziDaily displays avatar initials (e.g., "BM") and category icons for jobs. By integrating **Cloudinary** alongside **Firestore**:
-- **Artisans & Workers** can upload a real profile portrait directly from their phone camera or gallery, establishing identity trust before arriving at job sites.
-- **Employers** can capture and upload up to 3 site photos when posting gigs (e.g., a burst pipe, damaged electrical box, or overgrown lawn), allowing workers to accurately estimate labor and equipment before applying.
-- **Dynamic Mobile Optimization**: Cloudinary URL transforms automatically resize large 8MB smartphone photos down to exact thumbnail sizes (`w_200,h_200,c_fill,q_auto,f_auto`), drastically reducing mobile data consumption and latency.
+Currently, KaziDaily uses a small popup dialog with standard "Check Updates" phrasing. Users who want incremental patches rather than full reinstallation can now:
+1. Tap **"Patch Updates"** in **Profile & Wallet** to query the GitHub repository for release patches and update artifacts.
+2. Experience an immediate, polished **Full-Screen Patch Update** overlay adhering to KaziDaily's AMOLED dark / Frosted white glass aesthetics.
+3. Review release highlights, patch fixes, and download delta package size before applying.
+4. Watch real-time download and verification progress.
+5. On completion, receive an immediate prompt to **"Restart & Apply Patch"**, launching the in-place package installer without uninstallation.
 
 ---
 
@@ -26,107 +27,78 @@ Currently, KaziDaily displays avatar initials (e.g., "BM") and category icons fo
 
 ### Key User Flows
 
-1. **Artisan Profile Avatar Upload**:
-   - In the **Profile & Wallet** tab, tapping the avatar or edit badge triggers the Android Photo Picker (`PickVisualMedia`).
-   - The selected image is uploaded asynchronously to Cloudinary using an upload preset with progress indication.
-   - Upon completion, the resulting Cloudinary URL is saved to `/users/{uid}/photoUrl` in Firestore and immediately updates the app-wide avatar.
+1. **Triggering Patch Updates**:
+   - In `ProfileWalletScreen`, the action card reads **"KaziDaily Patch Manager"** with current build details (`v1.0.0 Build 1 · GitHub Release Channel`).
+   - The primary button reads **"🚀 Patch Updates"**.
 
-2. **Job Site Photos on Gig Creation**:
-   - In **Post Job**, a new media card allows employers to select up to 3 photos of the job location or damaged item.
-   - Thumbnails preview instantly with delete/replace chips.
-   - Images upload to Cloudinary; image URLs are saved in the job's `photoUrls: List<String>` array in Firestore.
+2. **Immediate Full-Screen Experience (`UpdateDialog.kt`)**:
+   - Renders as a full-screen edge-to-edge glass overlay (`DialogProperties(usePlatformDefaultWidth = false)`).
+   - Top banner: GitHub release tag badge (`⚡ GitHub Patch Release v1.2.0`), release date, and delta package size.
+   - Patch notes list with mint accent bullet indicators detailing fixes, escrow upgrades, and performance patches.
+   - Reassurance chip: *"🛡️ In-Place Update: Retains all wallet funds, escrow state, and active chats."*
 
-3. **Job Details & Exploration Image Carousel**:
-   - On the **Jobs** list, job cards with photos feature a sleek 16:9 banner preview with a photo count chip (`📷 3`).
-   - In the **Job Details Sheet**, users can swipe through full-width site photos with zoom/lightbox preview before submitting an application or funding escrow.
+3. **Live Download & Restart Prompt**:
+   - Animated linear progress bar with percentage, downloaded MB, and speed telemetry.
+   - When finished: transitions to **"Patch Ready! Restart to Apply"** state with an accent button: **"🔄 Restart & Apply Now"**.
+   - Tapping it triggers Android's package installer to install the patch on top of the existing app and relaunches seamlessly.
 
 ### Visual Styling & Theme Consistency
-- Strictly follows existing Material 3 Glassmorphism tokens (`LocalGlassTokens`): rounded image borders (`RoundedCornerShape(16.dp)`), glass scrims, mint accent badges, and skeleton shimmer loaders while images stream over the network.
-- Touch targets on image picker and delete chips strictly maintain the 48dp accessibility standard.
+- Strictly adheres to Material 3 Glass tokens (`LocalGlassTokens`), rounded cards (`24.dp`), mint/purple accents, and AMOLED black/frosted background.
+- Touch targets strictly comply with the 48dp accessibility standard.
 
 ---
 
-## 3. Key Product Decisions & Trade-Offs
-
-- **Cloudinary Direct Upload vs. Local/Server Proxy**:
-  - *Decision*: Direct upload from the Android client to Cloudinary via OkHttp REST endpoint using an unsigned preset (or configured cloud credentials in `.env`).
-  - *Rationale*: Eliminates the need for a dedicated backend media server while keeping upload latency minimal for users.
-- **Android Photo Picker vs. Legacy Storage Permissions**:
-  - *Decision*: Zero-permission `ActivityResultContracts.PickVisualMedia`.
-  - *Rationale*: Mandated by Google Play Developer Program policies; grants one-time secure access to the selected image without requiring intrusive storage or media permissions.
-- **On-the-Fly Dynamic Resizing**:
-  - *Decision*: Cloudinary URL transformations (`w_600,h_400,c_fill,g_auto,q_auto,f_auto`).
-  - *Rationale*: Automatically delivers modern formats (WebP/AVIF) and reduces payload size by ~80% compared to raw camera JPEGs.
-
----
-
-## 4. Technical Architecture & Data Strategy
+## 3. Technical Architecture & Data Strategy
 
 ### System Architecture Diagram
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              Android Client                                 │
-│                                                                             │
-│  ┌───────────────────────┐              ┌────────────────────────────────┐  │
-│  │ Android Photo Picker  │              │     Jetpack Compose Views      │  │
-│  │  (Zero Permissions)   │              │   • ProfileAvatar (Coil)       │  │
-│  └──────────┬────────────┘              │   • JobSitePhotoCarousel       │  │
-│             │ Selected URI              └────────────────▲───────────────┘  │
-│             ▼                                            │                  │
-│  ┌───────────────────────┐                               │                  │
-│  │ CloudinaryMediaService│                               │ Dynamic CDN URL  │
-│  │ (Upload & Transform)  │                               │ w_400,q_auto     │
-│  └──────────┬────────────┘                               │                  │
-│             │                                            │                  │
-└─────────────┼────────────────────────────────────────────┼──────────────────┘
-              │ Direct HTTP Upload                         │
-              ▼                                            │
-┌─────────────────────────────────────────┐                │
-│         Cloudinary CDN Storage          │────────────────┘
-│   • Image compression (WebP / AVIF)     │
-│   • On-the-fly cropping & thumbnails    │
-│   • Direct secure HTTPS asset URLs      │
-└────────────────────┬────────────────────┘
-                     │ Returns HTTPS Image URL
-                     ▼
-┌─────────────────────────────────────────┐
-│        Cloud Firestore Backend          │
-│   • /users/{uid} ──> photoUrl           │
-│   • /jobs/{jobId} ──> photoUrls[]       │
-└─────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────┐
+│                             Android Client                             │
+│                                                                        │
+│   ┌───────────────────────────┐      ┌──────────────────────────────┐  │
+│   │   ProfileWalletScreen     │      │   PatchUpdateFullScreen      │  │
+│   │   "🚀 Patch Updates"      │      │   (Full-screen Glass Dialog) │  │
+│   └─────────────┬─────────────┘      └──────────────▲───────────────┘  │
+│                 │                                   │                  │
+│                 ▼                                   │                  │
+│   ┌─────────────────────────────────────────────────┴───────────────┐  │
+│   │                   KaziViewModel & UpdateState                   │  │
+│   │   • Checking ──> Available ──> Downloading ──> ReadyToRestart   │  │
+│   └─────────────────────────────┬───────────────────────────────────┘  │
+│                                 │                                      │
+│                                 ▼                                      │
+│   ┌─────────────────────────────────────────────────────────────────┐  │
+│   │               UpdateManager (GitHub Patch Engine)               │  │
+│   │   • Fetches GitHub Release Patch Metadata & Delta APK           │  │
+│   │   • Downloads to app cache without wiping user data             │  │
+│   │   • Launches in-place Android PackageInstaller via FileProvider │  │
+│   └─────────────────────────────┬───────────────────────────────────┘  │
+└─────────────────────────────────┼──────────────────────────────────────┘
+                                  │ HTTPS API
+                                  ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                   GitHub Repository Releases                           │
+│   • Releases API / Assets: kazidaily-v1.2.0-patch.apk                  │
+│   • Changelog & Release Notes                                          │
+└────────────────────────────────────────────────────────────────────────┘
 ```
-
-### Data Model & Firestore Schema Updates
-
-1. **`jobs/{jobId}` Document**:
-   - `photoUrls`: `List<String>` (Cloudinary HTTPS URLs of job site images)
-2. **`users/{uid}` Document**:
-   - `photoUrl`: `String` (Cloudinary HTTPS URL of artisan portrait)
-
-### Dependencies
-- Enable `libs.coil.compose` (`io.coil-kt:coil-compose:2.7.0`) in `app/build.gradle.kts`.
-- Standard `okhttp3` (already in `app/build.gradle.kts`) for multipart direct uploads to Cloudinary API.
 
 ---
 
-## 5. Phased Implementation Plan
+## 4. Phased Implementation Plan
 
-- **Phase 1: Dependencies & Cloudinary Media Service**:
-  - Uncomment `implementation(libs.coil.compose)` in `app/build.gradle.kts`.
-  - Create `CloudinaryService.kt` with helper methods for uploading images via OkHttp and generating transformed URLs (`getAvatarUrl`, `getJobThumbnailUrl`, `getJobBannerUrl`).
-  - Configure `CLOUDINARY_CLOUD_NAME` and `CLOUDINARY_UPLOAD_PRESET` via `BuildConfig` and `.env.example`.
+- **Phase 1: UpdateManager GitHub Patch Engine**:
+  - Update `UpdateManager.kt` to reference GitHub release patches with accurate patch metadata, release notes, and delta package sizing.
+  - Implement restart intent / in-place package install trigger preserving all user data.
 
-- **Phase 2: UI Photo Picker & Image Upload Integration**:
-  - Implement `AvatarImagePicker` composable in `ProfileWalletScreen` with `PickVisualMedia`.
-  - Update `PostJobScreen` with a multi-image picker allowing employers to attach up to 3 photos.
-  - Wire upload progress indicators and error snackbars.
+- **Phase 2: Full-Screen Immediate Patch UI (`UpdateDialog.kt`)**:
+  - Convert `UpdateDialog` into an edge-to-edge full-screen glass overlay.
+  - Add GitHub release badges, detailed patch notes, data-preservation guarantees, and real-time progress indicators.
+  - Implement the **"Restart & Apply Now"** immediate prompt view.
 
-- **Phase 3: Job Display & Firestore Persistence**:
-  - Update `FirestoreJob` and `Job` models with `photoUrls: List<String>`.
-  - Update `KaziFirestoreRepository` to persist and retrieve image URLs.
-  - Enhance `JobCard` and `JobDetailsSheet` to display high-resolution image carousels with Coil async loaders and fallback placeholders.
+- **Phase 3: Profile Screen Refactoring**:
+  - Update `ProfileWalletScreen.kt` to label the section as **"KaziDaily Patch Manager"** and replace "Check Updates" with **"🚀 Patch Updates"**.
 
-- **Phase 4: Verification & Build Validation**:
-  - Test image picker contracts in Robolectric unit tests.
-  - Run `compile_applet` to confirm flawless compilation.
+- **Phase 4: Verification & Compilation**:
+  - Run `compile_applet` to ensure seamless compilation without errors.
