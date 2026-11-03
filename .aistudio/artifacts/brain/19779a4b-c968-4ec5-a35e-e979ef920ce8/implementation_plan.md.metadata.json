@@ -1,6 +1,6 @@
 {
-  "summary":  "Implementation plan for GitHub patch updates in place of check updates, with full-screen immediate update UI, in-place installation without uninstallation, and prompt for quick restart.",
-  "updatedAt":  "2026-11-01T11:20:08.805010771Z",
-  "requestFeedback":  true,
-  "userFacing":  true
+  "summary": "Implementation plan for removing compulsory login on startup, enabling guest browsing on the Explore feed with a subtle sign-in prompt, and showing a gorgeous glass-morphism login bottom sheet when users attempt to apply for or post jobs.",
+  "updatedAt": "2026-11-03T03:36:15.289693651Z",
+  "requestFeedback": true,
+  "userFacing": true
 }

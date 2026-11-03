@@ -60,45 +60,56 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            if (currentUser == null) {
-                MyApplicationTheme(darkTheme = true) {
-                    AuthScreen(
-                        onAuthSuccess = {
-                            currentUser = auth.currentUser
-                        }
-                    )
+            val viewModel: KaziViewModel = viewModel(
+                factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+                    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                        @Suppress("UNCHECKED_CAST")
+                        return KaziViewModel(
+                            repository = KaziRepository(context.applicationContext),
+                            firestoreRepository = KaziFirestoreRepository(context.applicationContext)
+                        ) as T
+                    }
                 }
-            } else {
-                val viewModel: KaziViewModel = viewModel(
-                    key = currentUser?.uid,
-                    factory = object : androidx.lifecycle.ViewModelProvider.Factory {
-                        override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-                            @Suppress("UNCHECKED_CAST")
-                            return KaziViewModel(
-                                repository = KaziRepository(context.applicationContext),
-                                firestoreRepository = KaziFirestoreRepository(context.applicationContext)
-                            ) as T
-                        }
+            )
+
+            LaunchedEffect(currentUser) {
+                viewModel.updateCurrentUser(currentUser)
+            }
+
+            val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
+            val showLoginSheet by viewModel.showLoginBottomSheet.collectAsStateWithLifecycle()
+            val loginContextMessage by viewModel.loginContextMessage.collectAsStateWithLifecycle()
+
+            MyApplicationTheme(darkTheme = isDarkTheme) {
+                val credentialManager = remember { CredentialManager.create(context) }
+                KaziDailyApp(
+                    viewModel = viewModel,
+                    onSignOut = {
+                        GoogleAuthManager.signOut(
+                            context = context,
+                            credentialManager = credentialManager,
+                            onSignOutComplete = {
+                                currentUser = null
+                                viewModel.updateCurrentUser(null)
+                            },
+                            scope = coroutineScope
+                        )
                     }
                 )
-                val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
 
-                MyApplicationTheme(darkTheme = isDarkTheme) {
-                    val credentialManager = remember { CredentialManager.create(context) }
-                    KaziDailyApp(
-                        viewModel = viewModel,
-                        onSignOut = {
-                            GoogleAuthManager.signOut(
-                                context = context,
-                                credentialManager = credentialManager,
-                                onSignOutComplete = {
-                                    currentUser = null
-                                },
-                                scope = coroutineScope
-                            )
-                        }
-                    )
-                }
+                com.example.ui.components.GlassLoginBottomSheet(
+                    isOpen = showLoginSheet,
+                    actionContextMessage = loginContextMessage,
+                    onAuthSuccess = {
+                        currentUser = auth.currentUser
+                        viewModel.updateCurrentUser(auth.currentUser)
+                        viewModel.dismissLoginBottomSheet()
+                        viewModel.showToast("Successfully signed in!")
+                    },
+                    onDismiss = {
+                        viewModel.dismissLoginBottomSheet()
+                    }
+                )
             }
         }
     }

@@ -52,6 +52,30 @@ class KaziViewModel(
     private val _isDarkTheme = MutableStateFlow(true)
     val isDarkTheme: StateFlow<Boolean> = _isDarkTheme.asStateFlow()
 
+    // Auth & Guest Browsing State
+    private val _isLoggedIn = MutableStateFlow(false)
+    val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
+
+    private val _showLoginBottomSheet = MutableStateFlow(false)
+    val showLoginBottomSheet: StateFlow<Boolean> = _showLoginBottomSheet.asStateFlow()
+
+    private val _loginContextMessage = MutableStateFlow("Sign in to apply for jobs or post listings")
+    val loginContextMessage: StateFlow<String> = _loginContextMessage.asStateFlow()
+
+    fun updateCurrentUser(user: com.google.firebase.auth.FirebaseUser?) {
+        _isLoggedIn.value = user != null
+        syncWithFirestore()
+    }
+
+    fun requestLogin(contextMessage: String = "Sign in to apply for jobs or post listings") {
+        _loginContextMessage.value = contextMessage
+        _showLoginBottomSheet.value = true
+    }
+
+    fun dismissLoginBottomSheet() {
+        _showLoginBottomSheet.value = false
+    }
+
     // Navigation
     private val _currentTab = MutableStateFlow(AppNavTab.HOME)
     val currentTab: StateFlow<AppNavTab> = _currentTab.asStateFlow()
@@ -318,6 +342,10 @@ class KaziViewModel(
     // Escrow & Application Actions
 
     fun applyForJob(job: Job) {
+        if (!isLoggedIn.value) {
+            requestLogin("Sign in to apply for '${job.title}' and connect with employers")
+            return
+        }
         val success = repository.applyForJob(job.id)
         if (success) {
             viewModelScope.launch {
@@ -539,7 +567,11 @@ class KaziViewModel(
         durationHours: Int,
         description: String,
         photoUrls: List<String> = emptyList()
-    ): Job {
+    ): Job? {
+        if (!isLoggedIn.value) {
+            requestLogin("Sign in as an employer to post verified job listings")
+            return null
+        }
         val job = repository.createJob(
             title, category, locationName, latitude, longitude, payKsh, durationHours, description, photoUrls
         )
