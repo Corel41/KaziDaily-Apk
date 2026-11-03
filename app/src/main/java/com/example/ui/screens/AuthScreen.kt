@@ -44,10 +44,10 @@ fun AuthScreen(
 
     // Automatic silent sign-in attempt on initial composition
     LaunchedEffect(Unit) {
-        GoogleAuthManager.attemptAutoSignIn(
+        com.example.auth.SupabaseAuthManager.attemptAutoSignIn(
             context = context,
             credentialManager = credentialManager,
-            onAuthSuccess = onAuthSuccess,
+            onAuthSuccess = { onAuthSuccess() },
             onUnauthenticated = { /* user will click button */ },
             scope = coroutineScope
         )
@@ -166,10 +166,10 @@ fun AuthScreen(
                 onClick = {
                     isLoading = true
                     errorMessage = null
-                    GoogleAuthManager.onGoogleSignInClicked(
+                    com.example.auth.SupabaseAuthManager.onGoogleSignInClicked(
                         context = context,
                         credentialManager = credentialManager,
-                        onAuthSuccess = {
+                        onAuthSuccess = { _ ->
                             isLoading = false
                             onAuthSuccess()
                         },
@@ -222,7 +222,7 @@ fun AuthScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Secure Google Authentication · Cloud Sync Powered by Firestore",
+                text = "Secure Google Authentication · Cloud Sync Powered by Supabase",
                 fontSize = 11.sp,
                 color = tokens.textMuted,
                 textAlign = TextAlign.Center

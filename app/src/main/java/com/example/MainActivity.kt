@@ -47,18 +47,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val context = androidx.compose.ui.platform.LocalContext.current
             val coroutineScope = rememberCoroutineScope()
-            val auth = remember { Firebase.auth }
-            var currentUser by remember { mutableStateOf(auth.currentUser) }
-
-            DisposableEffect(auth) {
-                val listener = FirebaseAuth.AuthStateListener { fbAuth ->
-                    currentUser = fbAuth.currentUser
-                }
-                auth.addAuthStateListener(listener)
-                onDispose {
-                    auth.removeAuthStateListener(listener)
-                }
-            }
+            val supabaseUser by com.example.auth.SupabaseAuthManager.currentUser.collectAsStateWithLifecycle()
 
             val viewModel: KaziViewModel = viewModel(
                 factory = object : androidx.lifecycle.ViewModelProvider.Factory {
@@ -66,14 +55,15 @@ class MainActivity : ComponentActivity() {
                         @Suppress("UNCHECKED_CAST")
                         return KaziViewModel(
                             repository = KaziRepository(context.applicationContext),
+                            supabaseRepository = com.example.data.supabase.KaziSupabaseRepository(),
                             firestoreRepository = KaziFirestoreRepository(context.applicationContext)
                         ) as T
                     }
                 }
             )
 
-            LaunchedEffect(currentUser) {
-                viewModel.updateCurrentUser(currentUser)
+            LaunchedEffect(supabaseUser) {
+                viewModel.updateCurrentUser(supabaseUser)
             }
 
             val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
@@ -85,12 +75,16 @@ class MainActivity : ComponentActivity() {
                 KaziDailyApp(
                     viewModel = viewModel,
                     onSignOut = {
-                        GoogleAuthManager.signOut(
+                        com.example.auth.SupabaseAuthManager.signOut(
                             context = context,
                             credentialManager = credentialManager,
                             onSignOutComplete = {
-                                currentUser = null
-                                viewModel.updateCurrentUser(null)
+                                viewModel.updateCurrentUser(null as com.example.model.SupabaseUser?)
+                                try {
+                                    GoogleAuthManager.signOut(context, credentialManager, {}, coroutineScope)
+                                } catch (e: Exception) {
+                                    // optional fallback
+                                }
                             },
                             scope = coroutineScope
                         )
@@ -101,8 +95,7 @@ class MainActivity : ComponentActivity() {
                     isOpen = showLoginSheet,
                     actionContextMessage = loginContextMessage,
                     onAuthSuccess = {
-                        currentUser = auth.currentUser
-                        viewModel.updateCurrentUser(auth.currentUser)
+                        viewModel.updateCurrentUser(com.example.auth.SupabaseAuthManager.currentUser.value)
                         viewModel.dismissLoginBottomSheet()
                         viewModel.showToast("Successfully signed in!")
                     },

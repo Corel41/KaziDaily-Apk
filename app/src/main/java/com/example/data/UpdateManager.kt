@@ -28,7 +28,7 @@ class UpdateManager {
                 "💼 Simulated Escrow hold & release logic with 10% platform fee deduction",
                 "🔔 Instant employer follow notifications & recommendation feed",
                 "📸 Cloudinary media optimization & zero-permission Photo Picker",
-                "💬 Real-time Firestore chat sync & two-party persona switcher",
+                "💬 Real-time Supabase chat sync & two-party persona switcher",
                 "🎨 Clean single theme toggle on AMOLED / Frosted Glass UI"
             ),
             apkDownloadUrl = "https://github.com/aistudio-build/kazidaily/releases/download/v1.2.0-patch/kazidaily-patch.apk",

@@ -45,6 +45,7 @@ data class EscrowCompletionResultState(
 
 class KaziViewModel(
     private val repository: KaziRepository = KaziRepository(),
+    private val supabaseRepository: com.example.data.supabase.KaziSupabaseRepository = com.example.data.supabase.KaziSupabaseRepository(),
     private val firestoreRepository: KaziFirestoreRepository? = null
 ) : ViewModel() {
 
@@ -62,8 +63,21 @@ class KaziViewModel(
     private val _loginContextMessage = MutableStateFlow("Sign in to apply for jobs or post listings")
     val loginContextMessage: StateFlow<String> = _loginContextMessage.asStateFlow()
 
+    fun updateCurrentUser(user: com.example.model.SupabaseUser?) {
+        _isLoggedIn.value = user != null
+        if (user != null) {
+            val cur = repository.userProfile.value
+            _customUserProfile.value = cur.copy(
+                id = user.id,
+                fullName = user.fullName?.takeIf { it.isNotBlank() } ?: cur.fullName
+            )
+        }
+        syncWithSupabase()
+    }
+
     fun updateCurrentUser(user: com.google.firebase.auth.FirebaseUser?) {
         _isLoggedIn.value = user != null
+        syncWithSupabase()
         syncWithFirestore()
     }
 
@@ -119,21 +133,24 @@ class KaziViewModel(
     private val _selectedCategory = MutableStateFlow<JobCategory?>(null)
     val selectedCategory: StateFlow<JobCategory?> = _selectedCategory.asStateFlow()
 
-    // Firestore streams
+    // Remote cloud streams (Supabase & Firestore fallback)
+    private val _supabaseJobs = MutableStateFlow<List<Job>>(emptyList())
+    private val _supabaseWallet = MutableStateFlow<WalletState?>(null)
     private val _firestoreJobs = MutableStateFlow<List<Job>>(emptyList())
     private val _firestoreWallet = MutableStateFlow<WalletState?>(null)
     private val _customUserProfile = MutableStateFlow<UserProfile?>(null)
 
-    // Data streams from repository & cloud Firestore
+    // Data streams from repository & cloud Supabase
     val userProfile: StateFlow<UserProfile> = combine(repository.userProfile, _customUserProfile) { local, custom ->
         custom ?: local
     }.stateIn(viewModelScope, SharingStarted.Eagerly, repository.userProfile.value)
 
-    val allJobs: StateFlow<List<Job>> = combine(repository.jobs, _firestoreJobs) { local, remote ->
-        if (remote.isNotEmpty()) remote else local
+    val allJobs: StateFlow<List<Job>> = combine(repository.jobs, _supabaseJobs, _firestoreJobs) { local, remoteSupa, remoteFire ->
+        if (remoteSupa.isNotEmpty()) remoteSupa else if (remoteFire.isNotEmpty()) remoteFire else local
     }.stateIn(viewModelScope, SharingStarted.Eagerly, repository.jobs.value)
 
-    val walletState: StateFlow<WalletState> = combine(repository.walletState, _firestoreWallet) { local, remote ->
+    val walletState: StateFlow<WalletState> = combine(repository.walletState, _supabaseWallet, _firestoreWallet) { local, remoteSupa, remoteFire ->
+        val remote = remoteSupa ?: remoteFire
         if (remote != null) {
             local.copy(
                 availableBalanceKsh = remote.availableBalanceKsh,
@@ -148,9 +165,51 @@ class KaziViewModel(
 
     init {
         try {
+            syncWithSupabase()
             syncWithFirestore()
         } catch (e: Throwable) {
-            android.util.Log.w("KaziViewModel", "Initial Firestore sync fallback", e)
+            android.util.Log.w("KaziViewModel", "Initial backend sync fallback", e)
+        }
+    }
+
+    fun syncWithSupabase() {
+        viewModelScope.launch {
+            try {
+                supabaseRepository.seedInitialJobsIfEmpty()
+            } catch (e: Exception) {
+                android.util.Log.w("KaziViewModel", "Supabase seed jobs notice: ${e.message}")
+            }
+        }
+
+        viewModelScope.launch {
+            try {
+                supabaseRepository.observeJobs()
+                    .catch { e -> android.util.Log.w("KaziViewModel", "observeJobs Supabase notice", e) }
+                    .collect { jobs ->
+                        if (jobs.isNotEmpty()) {
+                            _supabaseJobs.value = jobs
+                        }
+                    }
+            } catch (e: Exception) {
+                android.util.Log.w("KaziViewModel", "observeJobs Supabase failed", e)
+            }
+        }
+
+        val uid = supabaseRepository.currentUserId
+        if (uid != null) {
+            viewModelScope.launch {
+                try {
+                    supabaseRepository.observeWallet(uid)
+                        .catch { e -> android.util.Log.w("KaziViewModel", "observeWallet Supabase notice", e) }
+                        .collect { wallet ->
+                            if (wallet != null) {
+                                _supabaseWallet.value = wallet
+                            }
+                        }
+                } catch (e: Exception) {
+                    android.util.Log.w("KaziViewModel", "observeWallet Supabase launch failed", e)
+                }
+            }
         }
     }
 
@@ -350,9 +409,11 @@ class KaziViewModel(
         if (success) {
             viewModelScope.launch {
                 try {
+                    val profile = userProfile.value
+                    supabaseRepository.applyForJob(job.id, profile.id, profile.fullName)
                     firestoreRepository?.applyForJob(job.id)
                 } catch (e: Exception) {
-                    android.util.Log.w("KaziViewModel", "Firestore apply note: ${e.message}")
+                    android.util.Log.w("KaziViewModel", "Backend apply note: ${e.message}")
                 }
             }
             showToast("Applied for ${job.title}!")
@@ -393,9 +454,11 @@ class KaziViewModel(
             delay(1000) // Simulate M-Pesa STK Push / payment authorization
             val success = repository.holdPaymentInEscrow(jobId)
             try {
+                val targetJob = allJobs.value.find { it.id == jobId }
+                supabaseRepository.holdPaymentInEscrow(jobId, targetJob?.payKsh ?: 2500)
                 firestoreRepository?.holdPaymentInEscrow(jobId)
             } catch (e: Exception) {
-                android.util.Log.w("KaziViewModel", "Firestore hold escrow note: ${e.message}")
+                android.util.Log.w("KaziViewModel", "Backend hold escrow note: ${e.message}")
             }
             _escrowDepositPrompt.value = EscrowDepositPromptState()
             if (success) {
@@ -416,9 +479,12 @@ class KaziViewModel(
         val result = repository.releaseEscrowFundsToWorker(job.id, fixedFeePercent)
         viewModelScope.launch {
             try {
+                if (result != null) {
+                    supabaseRepository.releaseEscrowFundsToWorker(job.id, result.grossKsh, fixedFeePercent, job.title)
+                }
                 firestoreRepository?.releaseEscrowFundsToWorker(job.id, fixedFeePercent)
             } catch (e: Exception) {
-                android.util.Log.w("KaziViewModel", "Firestore release escrow note: ${e.message}")
+                android.util.Log.w("KaziViewModel", "Backend release escrow note: ${e.message}")
             }
         }
         if (result != null) {
@@ -477,6 +543,13 @@ class KaziViewModel(
         )
         viewModelScope.launch {
             try {
+                supabaseRepository.submitReview(
+                    jobId = job.id,
+                    rating = state.rating,
+                    tags = state.selectedTags.toList(),
+                    comment = state.comment,
+                    targetUserId = job.employerId
+                )
                 firestoreRepository?.submitReview(
                     jobId = job.id,
                     rating = state.rating,
@@ -484,7 +557,7 @@ class KaziViewModel(
                     comment = state.comment
                 )
             } catch (e: Exception) {
-                android.util.Log.w("KaziViewModel", "Firestore review note: ${e.message}")
+                android.util.Log.w("KaziViewModel", "Backend review note: ${e.message}")
             }
         }
         _reviewDialog.value = ReviewDialogState()
@@ -577,11 +650,14 @@ class KaziViewModel(
         )
         viewModelScope.launch {
             try {
+                supabaseRepository.createJob(
+                    title, category, locationName, latitude, longitude, payKsh, durationHours, description, photoUrls
+                )
                 firestoreRepository?.createJob(
                     title, category, locationName, latitude, longitude, payKsh, durationHours, description, photoUrls
                 )
             } catch (e: Exception) {
-                android.util.Log.w("KaziViewModel", "Firestore job create note: ${e.message}")
+                android.util.Log.w("KaziViewModel", "Backend job create note: ${e.message}")
             }
         }
         showToast("Job '${job.title}' posted live!")

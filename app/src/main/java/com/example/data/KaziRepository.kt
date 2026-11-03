@@ -7,10 +7,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.util.UUID
 
 class KaziRepository(
+    private val supabaseSync: com.example.data.supabase.SupabaseChatSync? = com.example.data.supabase.SupabaseChatSync(),
     private val firestoreSync: FirestoreChatSync? = null
 ) {
     // Convenience constructor for Android Context
-    constructor(context: android.content.Context) : this(FirestoreChatSync.create(context))
+    constructor(context: android.content.Context) : this(
+        supabaseSync = com.example.data.supabase.SupabaseChatSync(),
+        firestoreSync = null
+    )
 
     private val _userProfile = MutableStateFlow(
         UserProfile(
@@ -311,7 +315,9 @@ class KaziRepository(
         currentThreads[index] = updatedThread
         _chatThreads.value = currentThreads
 
-        // Push to Firestore backend for multi-device cross-device sync
+        // Push to Supabase backend for multi-device cross-device sync
+        supabaseSync?.pushThread(updatedThread)
+        supabaseSync?.pushMessage(threadId, userMsg)
         firestoreSync?.pushThread(updatedThread)
         firestoreSync?.pushMessage(threadId, userMsg)
 
@@ -320,6 +326,26 @@ class KaziRepository(
 
     fun startListeningToThread(threadId: String) {
         val currentUserId = _userProfile.value.id
+        supabaseSync?.startListeningToThreadMessages(threadId, currentUserId) { remoteMessages ->
+            if (remoteMessages.isEmpty()) return@startListeningToThreadMessages
+            val currentThreads = _chatThreads.value.toMutableList()
+            val index = currentThreads.indexOfFirst { it.threadId == threadId }
+            if (index != -1) {
+                val thread = currentThreads[index]
+                val existingIds = thread.messages.map { it.id }.toSet()
+                val newIncoming = remoteMessages.filterNot { existingIds.contains(it.id) }
+                if (newIncoming.isNotEmpty()) {
+                    val merged = thread.messages + newIncoming
+                    val last = merged.lastOrNull()
+                    currentThreads[index] = thread.copy(
+                        messages = merged,
+                        lastMessage = last?.text ?: thread.lastMessage,
+                        lastTimestamp = last?.timestampFormatted ?: thread.lastTimestamp
+                    )
+                    _chatThreads.value = currentThreads
+                }
+            }
+        }
         firestoreSync?.startListeningToThreadMessages(threadId, currentUserId) { remoteMessages ->
             if (remoteMessages.isEmpty()) return@startListeningToThreadMessages
             val currentThreads = _chatThreads.value.toMutableList()

@@ -175,10 +175,10 @@ fun GlassLoginBottomSheet(
                         onClick = {
                             isLoading = true
                             errorMessage = null
-                            GoogleAuthManager.onGoogleSignInClicked(
+                            com.example.auth.SupabaseAuthManager.onGoogleSignInClicked(
                                 context = context,
                                 credentialManager = credentialManager,
-                                onAuthSuccess = {
+                                onAuthSuccess = { _ ->
                                     isLoading = false
                                     onAuthSuccess()
                                 },
